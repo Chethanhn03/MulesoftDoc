@@ -1,0 +1,5 @@
+weather: 
+  host: 'api-dev.weatherapi.com'
+  username: ${secure::weather.username}
+  password: 'mule123'
+  
