@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:file="http://www.mulesoft.org/schema/mule/file" xmlns:db="http://www.mulesoft.org/schema/mule/db"
+	xmlns:salesforce="http://www.mulesoft.org/schema/mule/salesforce"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/salesforce http://www.mulesoft.org/schema/mule/salesforce/current/mule-salesforce.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/file http://www.mulesoft.org/schema/mule/file/current/mule-file.xsd">
+	<flow name="syncDBaccountCSV" doc:id="55ff3082-a30a-4359-8e6b-08657029b3a0" >
+		<db:listener doc:name="On Table Row" doc:id="20840d56-3782-4252-b50a-2eb8848f1441" >
+			<scheduling-strategy >
+				<fixed-frequency />
+			</scheduling-strategy>
+		</db:listener>
+		<ee:transform doc:name="java to csv" doc:id="8d6404cd-0875-46b1-b5a8-a0d453fa1bc2" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/csv header=false
+---
+[
+	payload
+]]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<file:write doc:name="DBaccounts.csv" doc:id="104edf7f-d9b6-4c42-9f88-d85b289debab" config-ref="File_Config" path="output/DBaccounts.csv" mode="APPEND"/>
+		<logger level="INFO" doc:name="payload" doc:id="e87a72e5-cb61-4ac2-b2b8-b398f9240df4" message="#[payload]"/>
+	</flow>
+	<flow name="getCSVaccount" doc:id="f975ea34-a92f-4030-8871-1bd31ee42d0f" >
+		<file:listener doc:name="accounts.csv" doc:id="3f73efed-b978-4c1d-a104-5e83a6f253e1" config-ref="File_Config" directory="input" moveToDirectory="output" renameTo='#[attributes.fileName ++ ".backup"]'>
+			<scheduling-strategy >
+				<fixed-frequency />
+			</scheduling-strategy>
+			<file:matcher filenamePattern="*.csv" directories="REQUIRE" regularFiles="REQUIRE"/>
+		</file:listener>
+		<logger level="INFO" doc:name="payload" doc:id="1d7f49eb-3e67-494f-8147-93667ca03d1c" message="#[payload]"/>
+	</flow>
+	<flow name="getSFDCaccounts" doc:id="ae423f00-24ae-4982-bcec-91e8f5686717" >
+		<http:listener doc:name="GET /sfdc" doc:id="074e29ad-87f8-420a-bf3f-37ce20661671" config-ref="HTTP_Listener_config" path="/sfdc" allowedMethods="GET"/>
+		<salesforce:query doc:name="Account" doc:id="468bb0fe-6f28-4d2d-977c-be18509927b6" config-ref="Salesforce_Config">
+			<salesforce:salesforce-query ><![CDATA[SELECT Name, LastModifiedDate, BillingPostalCode
+FROM Account]]></salesforce:salesforce-query>
+		</salesforce:query>
+		<ee:transform doc:name="Transform Message" doc:id="6cb3c9d2-06f3-4701-b826-d23b9a66ff16" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+	<flow name="accountsFlow" doc:id="14cb6186-03c7-4c9c-8f5a-41cbfab1c25c" >
+		<http:listener doc:name="Listener" doc:id="3ecde7cd-5db2-4fee-9144-3afaf977522b" config-ref="HTTP_Listener_config" path="/create"/>
+		<ee:transform doc:name="Transform Message" doc:id="790dc78c-30a8-40cb-b9a1-234dc8809b39" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+[{
+	Name: "Akash",
+	Website: "Akash@gmail.com"
+}]]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<salesforce:create doc:name="Create" doc:id="6b6a904d-110f-463f-8b12-9934c6521614" config-ref="Salesforce_Config" type="Account"/>
+		<logger level="INFO" doc:name="Logger" doc:id="0ff68144-6fe8-4850-96d3-163b75fcd1b3" />
+	</flow>
+</mule>

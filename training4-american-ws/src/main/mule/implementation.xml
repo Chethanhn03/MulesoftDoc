@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:db="http://www.mulesoft.org/schema/mule/db"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="8d1dae45-801a-4aa4-94f9-b2a8f553e10a" >
+		<http:listener-connection host="0.0.0.0" port="8081" />
+	</http:listener-config>
+	<db:config name="Database_Config" doc:name="Database Config" doc:id="8c91ca73-3b97-4ab3-a2c2-4881704d8f28" >
+		<db:my-sql-connection host="mudb.learn.mulesoft.com" port="3306" user="mule" password="mule" database="training" />
+	</db:config>
+	<db:config name="Database_Config1" doc:name="Database Config" doc:id="397113f9-d378-4aab-b4bf-79fdc0e5fe6a" >
+		<db:my-sql-connection host="mudb.learn.mulesoft.com" port="3306" user="mule" password="mule" database="training" />
+	</db:config>
+	<flow name="getFlights" doc:id="f2a6598c-b414-41db-b130-10d4e9c512a4" >
+		<logger level="INFO" doc:name="Logger" doc:id="16583847-4da8-435e-a586-b63e152fe38d" message="process start"/>
+		<db:select doc:name="Select" doc:id="77c16d15-2ba4-4314-9c96-042d3e6ad74a" config-ref="Database_Config">
+			<db:sql ><![CDATA[SELECT * from american]]></db:sql>
+		</db:select>
+		<ee:transform doc:name="Transform Message" doc:id="a637be37-1798-4e3f-8413-3a5ae1eaa19d" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload map ( payload01 , indexOfPayload01 ) -> {
+	ID: payload01.ID,
+	code: (payload01.CODE1default "") ++ (payload01.CODE2 default ""),
+	price: payload01.PRICE default 0,
+	departureDate: payload01.TAKEOFFDATE as String default "",
+	origin: payload01.FROMAIRPORT default "",
+	destination: payload01.TOAIRPORT default "",
+	emptySeats: payload01.SEATSAVAILABLE default 0,
+	plane: {
+		"type": payload01.PLANETYPE default "",
+		totalSeats: payload01.TOTALSEATS default 0
+	}
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger" doc:id="9dc14f1d-e4e6-4de7-8a3b-25b70d5a87a5" message="process end"/>
+	</flow>
+	<flow name="getFlightsByID" doc:id="c299cf83-2b86-4e5e-9cab-f46f81dfbfb1" >
+		<logger level="INFO" doc:name="Logger" doc:id="6593641f-60d5-4b98-a068-5b5991e783f3" message="process start" />
+		<db:select doc:name="Select" doc:id="8e9442c5-cba6-4722-a3c6-55f2527f4104" config-ref="Database_Config1" >
+			<db:sql ><![CDATA[SELECT * from american WHERE ID = :ID]]></db:sql>
+			<db:input-parameters ><![CDATA[#[{'ID' : attributes.uriParams.ID}]]]></db:input-parameters>
+		</db:select>
+		<ee:transform doc:name="Transform Message" doc:id="59a6b201-aa4a-4da8-9cf9-bb0343a41efc" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload map ( payload01 , indexOfPayload01 ) -> {
+	ID: payload01.ID,
+	code: (payload01.CODE1default "") ++ (payload01.CODE2 default ""),
+	price: payload01.PRICE default 0,
+	departureDate: payload01.TAKEOFFDATE as String default "",
+	origin: payload01.FROMAIRPORT default "",
+	destination: payload01.TOAIRPORT default "",
+	emptySeats: payload01.SEATSAVAILABLE default 0,
+	plane: {
+		"type": payload01.PLANETYPE default "",
+		totalSeats: payload01.TOTALSEATS default 0
+	}
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger1" doc:id="1314741a-30b5-4f8f-9488-7da83d91b02a" message="process end" />
+	</flow>
+	<flow name="postFlight" doc:id="0038286c-4608-4b59-83f4-0a8921c501a5" >
+		<set-payload value='{"message": "Flight added (but not really)"}' doc:name="Set Payload" doc:id="96388c46-689f-41b2-826b-18fc8a204398" />
+	</flow>
+</mule>
